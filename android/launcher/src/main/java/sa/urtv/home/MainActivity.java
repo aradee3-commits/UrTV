@@ -107,6 +107,10 @@ public class MainActivity extends Activity {
     private final Runnable rotateWallpaper = this::nextWallpaper;
     static final long WALLPAPER_INTERVAL_MS = 10 * 60 * 1000;
     private TextView greeting, weatherLine, clock, ampm, date, zoneLine, title, appsLabel;
+    private TextView tabukNewsTicker, worldNewsTicker;
+    private final Handler newsHandler = new Handler(Looper.getMainLooper());
+    private final Runnable refreshNewsTask = this::refreshNews;
+    private volatile boolean newsScreenActive = false;
     private Pill wifiPill;   // the network's name shows while it has the focus
     private Greeting greetingLine;
     private int glowColor = 0xFF3A3A3A;
@@ -173,6 +177,9 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onResume() {
+        newsScreenActive = true;
+        newsHandler.removeCallbacks(refreshNewsTask);
+        refreshNewsTask.run();
         super.onResume();
         IntentFilter tf = new IntentFilter(Intent.ACTION_TIME_TICK);
         tf.addAction(Intent.ACTION_TIME_CHANGED);
@@ -200,6 +207,8 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onPause() {
+        newsScreenActive = false;
+        newsHandler.removeCallbacks(refreshNewsTask);
         super.onPause();
         handler.removeCallbacks(rotateWallpaper);
         unregisterReceiver(tick);
@@ -326,6 +335,8 @@ public class MainActivity extends Activity {
         dockRow.setBackground(band);
         bottom.addView(dockRow, new LinearLayout.LayoutParams(-1, -2));
 
+        content.addView(buildNewsPanel(), llp(-1, -2, dp(48), dp(12), dp(48), dp(24)));
+
         appsLabel = text(11, "sans-serif-medium", 0x99FFFFFF);
         appsLabel.setText("كل التطبيقات");
         appsLabel.setTextColor(GOLD);
@@ -355,6 +366,124 @@ public class MainActivity extends Activity {
             for (View c : dockCards) wide = Math.max(wide, Math.round(title.getPaint().measureText(((App) c.getTag()).label)));
         }
         return CardBox.box(cards, dm.widthPixels, dm.heightPixels, dm.density, clockLeft, titleTop, dockTop, wide);
+    }
+
+
+    private View buildNewsPanel() {
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(18), dp(10), dp(18), dp(10));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(0xD91B2430);
+        bg.setCornerRadius(dp(14));
+        bg.setStroke(dp(1), 0x33D8B66A);
+        panel.setBackground(bg);
+
+        TextView localLabel = text(13, "sans-serif-medium", GOLD);
+        localLabel.setText("أخبار تبوك وضباء والوجه وأملج");
+        panel.addView(localLabel, new LinearLayout.LayoutParams(-1, -2));
+
+        tabukNewsTicker = makeNewsTicker();
+        tabukNewsTicker.setText("جاري تحميل أخبار منطقة تبوك...");
+        panel.addView(tabukNewsTicker, new LinearLayout.LayoutParams(-1, dp(34)));
+
+        View divider = new View(this);
+        divider.setBackgroundColor(0x33FFFFFF);
+        LinearLayout.LayoutParams dividerLp = new LinearLayout.LayoutParams(-1, dp(1));
+        dividerLp.topMargin = dp(4);
+        dividerLp.bottomMargin = dp(4);
+        panel.addView(divider, dividerLp);
+
+        TextView worldLabel = text(13, "sans-serif-medium", GOLD);
+        worldLabel.setText("أخبار السعودية والعالم");
+        panel.addView(worldLabel, new LinearLayout.LayoutParams(-1, -2));
+
+        worldNewsTicker = makeNewsTicker();
+        worldNewsTicker.setText("جاري تحميل الأخبار...");
+        panel.addView(worldNewsTicker, new LinearLayout.LayoutParams(-1, dp(34)));
+        return panel;
+    }
+
+    private TextView makeNewsTicker() {
+        TextView tv = text(15, "sans-serif", Color.WHITE);
+        tv.setSingleLine(true);
+        tv.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
+        tv.setMarqueeRepeatLimit(-1);
+        tv.setSelected(true);
+        tv.setFocusable(false);
+        tv.setGravity(Gravity.CENTER_VERTICAL);
+        return tv;
+    }
+
+    private void refreshNews() {
+        if (!newsScreenActive) return;
+        fetchNews(
+            "https://news.google.com/rss/search?q=%D8%AA%D8%A8%D9%88%D9%83+OR+%D8%B6%D8%A8%D8%A7%D8%A1+OR+%D8%A7%D9%84%D9%88%D8%AC%D9%87+OR+%D8%A3%D9%85%D9%84%D8%AC&hl=ar&gl=SA&ceid=SA%3Aar",
+            tabukNewsTicker, "تعذر تحميل أخبار تبوك؛ تحقق من الإنترنت."
+        );
+        fetchNews(
+            "https://news.google.com/rss?hl=ar&gl=SA&ceid=SA%3Aar",
+            worldNewsTicker, "تعذر تحميل الأخبار؛ تحقق من الإنترنت."
+        );
+        newsHandler.removeCallbacks(refreshNewsTask);
+        newsHandler.postDelayed(refreshNewsTask, 30 * 60 * 1000L);
+    }
+
+    private void fetchNews(String address, TextView target, String errorText) {
+        if (target == null) return;
+        Thread thread = new Thread(() -> {
+            String result = "";
+            java.net.HttpURLConnection connection = null;
+            try {
+                connection = (java.net.HttpURLConnection)
+                    new java.net.URL(address).openConnection();
+                connection.setConnectTimeout(10000);
+                connection.setReadTimeout(10000);
+                connection.setRequestProperty("User-Agent", "UrTV-News/1.0");
+                try (java.io.InputStream stream = connection.getInputStream()) {
+                    org.xmlpull.v1.XmlPullParser parser = android.util.Xml.newPullParser();
+                    parser.setInput(stream, "UTF-8");
+                    StringBuilder titles = new StringBuilder();
+                    int event = parser.getEventType();
+                    boolean inItem = false;
+                    boolean inTitle = false;
+                    while (event != org.xmlpull.v1.XmlPullParser.END_DOCUMENT
+                            && titles.length() < 1800) {
+                        if (event == org.xmlpull.v1.XmlPullParser.START_TAG) {
+                            String name = parser.getName();
+                            if ("item".equals(name) || "entry".equals(name)) inItem = true;
+                            if (inItem && "title".equals(name)) inTitle = true;
+                        } else if (event == org.xmlpull.v1.XmlPullParser.TEXT && inItem && inTitle) {
+                            String title = parser.getText().trim();
+                            if (!title.isEmpty() && !title.equalsIgnoreCase("Google News")) {
+                                if (titles.length() > 0) titles.append("   •   ");
+                                titles.append(title);
+                            }
+                            inTitle = false;
+                        } else if (event == org.xmlpull.v1.XmlPullParser.END_TAG) {
+                            String name = parser.getName();
+                            if ("title".equals(name)) inTitle = false;
+                            if ("item".equals(name) || "entry".equals(name)) inItem = false;
+                        }
+                        event = parser.next();
+                    }
+                    result = titles.toString();
+                }
+            } catch (Exception ignored) {
+                result = "";
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+
+            final String news = result;
+            runOnUiThread(() -> {
+                if (!newsScreenActive || isFinishing()) return;
+                target.setText(news.isEmpty() ? errorText : news);
+                target.setSelected(true);
+            });
+        }, "UrTV-News-Fetch");
+        thread.setDaemon(true);
+        thread.start();
     }
 
     private View buildHeader() {
