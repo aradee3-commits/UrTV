@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
 
       - name: Build the page
         run: python3 src/build.py
@@ -39,7 +41,8 @@ jobs:
 
       - name: Build launcher only
         env:
-          URTV_BRANCH: master
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          URTV_BRANCH: ${{ github.ref_name }}
         run: gradle -p android :launcher:assembleRelease --no-daemon
 
       - name: Prepare test APK
