@@ -391,6 +391,15 @@
   }
   .subline .dot{width:5px;height:5px;border-radius:50%;background:var(--gold);opacity:.9}
 
+  /* Two compact RSS tickers shared by the screensaver; the card row stays below them. */
+  .news-strip{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr);gap:.3vh;
+    padding:.65vh 1vw;background:rgba(4,14,9,.66);border:1px solid rgba(var(--gold-rgb),.20);border-radius:10px;min-width:0}
+  .news-line{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.8em;min-width:0;line-height:1.35}
+  .news-name{font-size:clamp(11px,.82vw,16px);font-weight:500;color:var(--gold-2);white-space:nowrap}
+  .news-text{font-size:clamp(12px,.95vw,18px);color:#F6EEDC;white-space:nowrap;overflow:hidden;text-overflow:clip;direction:rtl;min-width:0}
+  .news-text span{display:inline-block;min-width:100%;animation:newsMove 100s linear infinite}
+  @keyframes newsMove{0%{transform:translateX(0)}100%{transform:translateX(-65%)}}
+  html.widget .news-strip{display:none}
   .bottom{
     display:grid;grid-template-columns:1fr .9fr 1.3fr;
     gap:2.4vw;align-items:start;
@@ -553,6 +562,10 @@
   </section>
 
   <footer class="bottom">
+    <section class="news-strip" id="news-strip" aria-label="الأخبار">
+      <div class="news-line"><span class="news-name">تبوك وضباء والوجه وأملج</span><div class="news-text" id="news-local">جارٍ تحميل الأخبار المحلية…</div></div>
+      <div class="news-line"><span class="news-name">السعودية والعالم</span><div class="news-text" id="news-world">جارٍ تحميل الأخبار…</div></div>
+    </section>
     <div class="panel p-prayer">
       <div class="label" id="prayer-label">الصلاة القادمة</div>
       <div class="big"><span id="prayer-name">—</span><span class="num" id="prayer-time"></span></div>
@@ -3129,6 +3142,25 @@ function nowPlayingTick(){
   FIT_STEPS.concat([.64, .56]).find(k => { line.style.fontSize = k === 1 ? '' : k + 'em'; return card.getBoundingClientRect().width <= innerWidth * .42; });
 }
 
+// RSS news strip on the screensaver. Refresh every 30 minutes; keep the rest of the dashboard independent.
+async function loadNewsStrip(){
+  const feeds = [
+    ['news-local','https://news.google.com/rss/search?q=%D8%AA%D8%A8%D9%88%D9%83+OR+%D8%B6%D8%A8%D8%A7%D8%A1+OR+%D8%A7%D9%84%D9%88%D8%AC%D9%87+OR+%D8%A3%D9%85%D9%84%D8%AC&hl=ar&gl=SA&ceid=SA%3Aar','تعذر تحميل الأخبار المحلية'],
+    ['news-world','https://news.google.com/rss?hl=ar&gl=SA&ceid=SA%3Aar','تعذر تحميل الأخبار']
+  ];
+  await Promise.all(feeds.map(async ([id,url,fallback])=>{
+    const target=document.getElementById(id); if(!target) return;
+    try{
+      const response=await fetch(url,{cache:'no-store'});
+      if(!response.ok) throw new Error('RSS');
+      const xml=new DOMParser().parseFromString(await response.text(),'text/xml');
+      const titles=[...xml.querySelectorAll('item title, entry title')].map(n=>n.textContent.trim()).filter(Boolean).slice(0,18);
+      if(!titles.length) throw new Error('empty');
+      target.replaceChildren();
+      const span=document.createElement('span'); span.textContent=titles.join('   •   '); target.appendChild(span);
+    }catch(e){ target.textContent=fallback; }
+  }));
+}
 function boot(){
   pruneStorage();
   if(CONFIG.widget){ bootWidget(); return; }
@@ -3158,6 +3190,7 @@ function boot(){
   setInterval(() => applyBackground(false), 60*1000);
   tickClock(); tickDates(); tickOccasion(); renderSlot();
   loadMarkets();
+  loadNewsStrip(); periodic(loadNewsStrip, 30*60*1000);
   renderPanel(false, ...CARD_KINDS.filter(k => k !== 'shows'));   // shows: its own data arrives with prayers, weather, matches
   if(NEEDS_MATCHES) loadMatches();
   loadPrayers(); if(USES('shows')) loadWeek(); loadWeather();
