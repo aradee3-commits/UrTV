@@ -2,7 +2,7 @@ name: Build APKs
 
 on:
   push:
-    branches: [master, next]   # next: a test build in apk-next, before anything reaches apk-latest
+    branches: [master, next, news-on-latest]   # news-on-latest: build the news ticker test APKs
     paths: ['src/**', 'assets/**', 'android/**', '.github/workflows/android.yml']
   workflow_dispatch:
 
