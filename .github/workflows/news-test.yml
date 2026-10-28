@@ -34,6 +34,19 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      # Use the project's release certificate so the test launcher can read the
+      # signature-protected city configuration from the installed screensaver.
+      - name: Configure release signing
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::Android signing secrets are missing"; exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
+          echo "ANDROID_KEYSTORE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
+
       # Make the test package independent from the production app and directly launchable
       # from the TV app list; HOME alone does not create an app-drawer launch button.
       - name: Prepare test manifest
@@ -72,6 +85,7 @@ jobs:
 
       - name: Build launcher only
         env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           URTV_BRANCH: ${{ github.ref_name }}
         run: gradle -p android :launcher:assembleRelease --no-daemon
 
