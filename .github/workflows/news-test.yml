@@ -2,6 +2,12 @@ name: Test News Launcher Only
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - news-on-latest
+    paths:
+      - '.github/workflows/news-test.yml'
+      - 'android/launcher/**'
 
 permissions:
   contents: read
@@ -27,7 +33,21 @@ jobs:
           gradle-version: '8.9'
 
       # This is an isolated test APK (applicationId sa.urtv.home.news).
-      # Use Gradle's debug signing key; do not require the production keystore.
+      # Give its custom permission and providers unique names so Android can
+      # install it alongside the production launcher.
+      - name: Isolate test manifest identifiers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/launcher/src/main/AndroidManifest.xml")
+          s = p.read_text()
+          s = s.replace('android:name="sa.urtv.home.READ_NOW_PLAYING"', 'android:name="sa.urtv.home.news.READ_NOW_PLAYING"')
+          s = s.replace('android:readPermission="sa.urtv.home.READ_NOW_PLAYING"', 'android:readPermission="sa.urtv.home.news.READ_NOW_PLAYING"')
+          s = s.replace('android:authorities="sa.urtv.home.nowplaying"', 'android:authorities="sa.urtv.home.news.nowplaying"')
+          s = s.replace('android:authorities="sa.urtv.home.adhan"', 'android:authorities="sa.urtv.home.news.adhan"')
+          p.write_text(s)
+          PY
+
       - name: Build launcher only
         env:
           URTV_BRANCH: ${{ github.ref_name }}
