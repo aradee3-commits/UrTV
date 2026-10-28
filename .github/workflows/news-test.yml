@@ -44,7 +44,22 @@ jobs:
           if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
             echo "::error::Android signing secrets are missing"; exit 1
           fi
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
+          python3 - <<'PY'
+          import base64, os, re
+          from pathlib import Path
+          raw = os.environ["KEYSTORE_B64"].strip()
+          # Accept copied Base64 with whitespace or surrounding quotes.
+          if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in "'\"":
+              raw = raw[1:-1]
+          raw = re.sub(r"\s+", "", raw)
+          try:
+              data = base64.b64decode(raw, validate=True)
+          except Exception as exc:
+              raise SystemExit("ANDROID_KEYSTORE_B64 is not valid Base64. Re-save it from the original .p12 using the project's signing-key script.") from exc
+          if not data.startswith(b"\x30"):
+              raise SystemExit("Decoded signing file does not look like a PKCS12 keystore; check ANDROID_KEYSTORE_B64.")
+          Path(os.environ["RUNNER_TEMP"], "release.p12").write_bytes(data)
+          PY
           echo "ANDROID_KEYSTORE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
 
       # Make the test package independent from the production app and directly launchable
