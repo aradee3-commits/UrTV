@@ -32,10 +32,9 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      # This is an isolated test APK (applicationId sa.urtv.home.news).
-      # Give its custom permission and providers unique names so Android can
-      # install it alongside the production launcher.
-      - name: Isolate test manifest identifiers
+      # Make the test package independent from the production app and directly launchable
+      # from the TV app list; HOME alone does not create an app-drawer launch button.
+      - name: Prepare test manifest
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -45,6 +44,10 @@ jobs:
           s = s.replace('android:readPermission="sa.urtv.home.READ_NOW_PLAYING"', 'android:readPermission="sa.urtv.home.news.READ_NOW_PLAYING"')
           s = s.replace('android:authorities="sa.urtv.home.nowplaying"', 'android:authorities="sa.urtv.home.news.nowplaying"')
           s = s.replace('android:authorities="sa.urtv.home.adhan"', 'android:authorities="sa.urtv.home.news.adhan"')
+          needle = '<category android:name="android.intent.category.HOME" />'
+          replacement = needle + '\n            <category android:name="android.intent.category.LEANBACK_LAUNCHER" />\n            <category android:name="android.intent.category.LAUNCHER" />'
+          if replacement not in s:
+              s = s.replace(needle, replacement, 1)
           p.write_text(s)
           PY
 
