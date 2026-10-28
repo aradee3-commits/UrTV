@@ -7,6 +7,8 @@ on:
       - news-on-latest
     paths:
       - '.github/workflows/news-test.yml'
+      - 'src/**'
+      - 'assets/**'
       - 'android/launcher/**'
 
 permissions:
