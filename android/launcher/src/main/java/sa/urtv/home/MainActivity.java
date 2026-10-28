@@ -744,8 +744,14 @@ public class MainActivity extends Activity {
             if (!has) return;
             lastFocusedId = v.getId();
             if (inDock) {
-                title.setText(app.label);
-                title.animate().alpha(1f).setDuration(200).start();
+                if ("Desktop Launcher".equalsIgnoreCase(app.label.trim())) {
+                    title.setText("");
+                    title.setVisibility(View.GONE);
+                } else {
+                    title.setVisibility(View.VISIBLE);
+                    title.setText(app.label);
+                    title.animate().alpha(1f).setDuration(200).start();
+                }
                 animateGlow(app.color);
                 fadeGlow(1f);
                 scroll.smoothScrollTo(0, 0);
