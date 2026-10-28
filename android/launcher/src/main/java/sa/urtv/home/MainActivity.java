@@ -316,6 +316,12 @@ public class MainActivity extends Activity {
         hero.addView(bottom, lp(-1, -2, Gravity.BOTTOM, dp(48), 0, dp(48), dp(30)));
         bottomBlock = bottom;
 
+        // Keep both news tickers on the home screen itself, above the favourites/apps row.
+        View newsPanel = buildNewsPanel();
+        LinearLayout.LayoutParams newsLp = new LinearLayout.LayoutParams(-1, -2);
+        newsLp.bottomMargin = dp(12);
+        bottom.addView(newsPanel, newsLp);
+
         title = text(34, "sans-serif-light", Color.WHITE);
         title.setShadowLayer(dp(18), 0, 0, 0x66000000);
         title.setSingleLine(true);
@@ -334,8 +340,6 @@ public class MainActivity extends Activity {
         band.setStroke(dp(1), 0x14FFFFFF);
         dockRow.setBackground(band);
         bottom.addView(dockRow, new LinearLayout.LayoutParams(-1, -2));
-
-        content.addView(buildNewsPanel(), llp(-1, -2, dp(48), dp(12), dp(48), dp(24)));
 
         appsLabel = text(11, "sans-serif-medium", 0x99FFFFFF);
         appsLabel.setText("كل التطبيقات");
@@ -372,35 +376,35 @@ public class MainActivity extends Activity {
     private View buildNewsPanel() {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(dp(18), dp(10), dp(18), dp(10));
+        panel.setPadding(dp(14), dp(5), dp(14), dp(5));
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(0xD91B2430);
         bg.setCornerRadius(dp(14));
         bg.setStroke(dp(1), 0x33D8B66A);
         panel.setBackground(bg);
 
-        TextView localLabel = text(13, "sans-serif-medium", GOLD);
+        TextView localLabel = text(11, "sans-serif-medium", GOLD);
         localLabel.setText("أخبار تبوك وضباء والوجه وأملج");
         panel.addView(localLabel, new LinearLayout.LayoutParams(-1, -2));
 
         tabukNewsTicker = makeNewsTicker();
         tabukNewsTicker.setText("جاري تحميل أخبار منطقة تبوك...");
-        panel.addView(tabukNewsTicker, new LinearLayout.LayoutParams(-1, dp(34)));
+        panel.addView(tabukNewsTicker, new LinearLayout.LayoutParams(-1, dp(25)));
 
         View divider = new View(this);
         divider.setBackgroundColor(0x33FFFFFF);
         LinearLayout.LayoutParams dividerLp = new LinearLayout.LayoutParams(-1, dp(1));
-        dividerLp.topMargin = dp(4);
-        dividerLp.bottomMargin = dp(4);
+        dividerLp.topMargin = dp(1);
+        dividerLp.bottomMargin = dp(1);
         panel.addView(divider, dividerLp);
 
-        TextView worldLabel = text(13, "sans-serif-medium", GOLD);
+        TextView worldLabel = text(11, "sans-serif-medium", GOLD);
         worldLabel.setText("أخبار السعودية والعالم");
         panel.addView(worldLabel, new LinearLayout.LayoutParams(-1, -2));
 
         worldNewsTicker = makeNewsTicker();
         worldNewsTicker.setText("جاري تحميل الأخبار...");
-        panel.addView(worldNewsTicker, new LinearLayout.LayoutParams(-1, dp(34)));
+        panel.addView(worldNewsTicker, new LinearLayout.LayoutParams(-1, dp(25)));
         return panel;
     }
 
