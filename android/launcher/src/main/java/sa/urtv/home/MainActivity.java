@@ -322,11 +322,13 @@ public class MainActivity extends Activity {
         newsLp.bottomMargin = dp(12);
         bottom.addView(newsPanel, newsLp);
 
+        // The selected app's name is redundant above the favourites dock and takes room
+        // away from the news panel, so keep the TextView only for existing layout calculations.
         title = text(34, "sans-serif-light", Color.WHITE);
         title.setShadowLayer(dp(18), 0, 0, 0x66000000);
         title.setSingleLine(true);
+        title.setVisibility(View.GONE);
         bottom.addView(title, new LinearLayout.LayoutParams(-2, -2));
-        ((LinearLayout.LayoutParams) title.getLayoutParams()).setMargins(dp(8), 0, 0, dp(14));
 
         dockRow = new LinearLayout(this);
         dockRow.setOrientation(LinearLayout.HORIZONTAL);
